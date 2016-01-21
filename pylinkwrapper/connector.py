@@ -37,22 +37,44 @@ class connect(object):
         pylink.flushGetkeyQueue() 
         self.tracker.setOfflineMode()
 
-        # Set content of edf file
-        eftxt = 'LEFT,RIGHT,FIXATION,SACCADE,BLINK,MESSAGE,BUTTON,INPUT'
-        self.tracker.sendCommand('file_event_filter = ' + eftxt)
-    
-        lftxt = 'LEFT,RIGHT,FIXATION,SACCADE,BLINK,BUTTON'
-        self.tracker.sendCommand('link_event_filter = ' + lftxt)
+        #Gets the display surface and send msg;
+        surf = pygame.display.get_surface()
+        getEYELINK().sendCommand("screen_pixel_coords =  0 0 %d %d" %(surf.get_rect().w, surf.get_rect().h))
+        getEYELINK().sendMessage("DISPLAY_COORDS  0 0 %d %d" %(surf.get_rect().w, surf.get_rect().h))
         
-        lstxt = 'LEFT,RIGHT,GAZE,GAZERES,AREA,STATUS,HTARGET'
-        self.tracker.sendCommand('link_sample_data = ' + lstxt)
+        tracker_software_ver = 0
+        eyelink_ver = getEYELINK().getTrackerVersion()
+        if eyelink_ver == 3:
+            tvstr = getEYELINK().getTrackerVersion()
+            vindex = tvstr.find("EYELINK CL")
+	        tracker_software_ver = int(float(tvstr[(vindex + len("EYELINK CL")):].strip()))
+	    if eyelink_ver>=2:
+	        getEYELINK().sendCommand("select_parser_configuration 0")
+	    if eyelink_ver == 2: #turn off scenelink camera stuff
+		    getEYELINK().sendCommand("scene_camera_gazemap = NO")
+        else:
+	        getEYELINK().sendCommand("saccade_velocity_threshold = 35")
+	        getEYELINK().sendCommand("saccade_acceleration_threshold = 9500")
+	
+        # set EDF file contents 
+        getEYELINK().sendCommand("file_event_filter = LEFT,RIGHT,FIXATION,SACCADE,BLINK,MESSAGE,BUTTON")
+        if tracker_software_ver>=4:
+	        getEYELINK().sendCommand("file_sample_data  = LEFT,RIGHT,GAZE,AREA,GAZERES,STATUS,HTARGET")
+        else:
+	        getEYELINK().sendCommand("file_sample_data  = LEFT,RIGHT,GAZE,AREA,GAZERES,STATUS")
+
+        # set link data (used for gaze cursor) 
+        getEYELINK().sendCommand("link_event_filter = LEFT,RIGHT,FIXATION,SACCADE,BLINK,BUTTON")
+        if tracker_software_ver>=4:
+	        getEYELINK().sendCommand("link_sample_data  = LEFT,RIGHT,GAZE,GAZERES,AREA,STATUS,HTARGET")
+        else:
+	        getEYELINK().sendCommand("link_sample_data  = LEFT,RIGHT,GAZE,GAZERES,AREA,STATUS")
+  
+  
+
+        getEYELINK().sendCommand("button_function 5 'accept_target_fixation'");
+	    
         
-        fstxt ='LEFT,RIGHT,GAZE,AREA,GAZERES,STATUS,HTARGET,INPUT'
-        self.tracker.sendCommand('file_sample_data = ' + fstxt)
-        
-        # Set display coords for dataviewer
-        disptxt = 'DISPLAY_COORDS 0 0 {} {}'.format(*self.sres)
-        self.tracker.sendMessage(disptxt)
 
     def calibrate(self, cnum=13, paval=1000):
         """
